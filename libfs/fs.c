@@ -9,6 +9,37 @@
 
 /* TODO: Phase 1 */
 
+struct __attribute__((__packed__)) superblock
+{
+	/*
+		(8 characters) signature
+		(2 bytes) total amount of blocks of virtual disk
+		(2 bytes) root directory block index
+		(2 bytes) data block start index
+		(2 bytes) amount of data blcoks
+		(1 bytes) number of blocks for FAT
+		(4079 characters?) unsused/padding
+	*/
+}
+
+struct __attribute__((__packed__)) FAT
+{
+	/*
+		16-bit unsigned words as many entries as data blocks in disk
+		kinda confused on what goes inside here...
+	*/
+}
+
+struct __attribute__((__packed__)) rootdirectory
+{
+	/*
+		(16 bytes) Filename
+		(4 bytes) Size of the files (in bytes)
+		(2 bytes) Index of the first data block
+		(10 bytes) Unused/Padding
+	*/
+}
+
 int fs_mount(const char *diskname)
 {
 	/* TODO: Phase 1 */
