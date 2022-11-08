@@ -20,7 +20,7 @@ struct __attribute__((__packed__)) superblock
 		(1 bytes) number of blocks for FAT
 		(4079 characters?) unsused/padding
 	*/
-}
+};
 
 struct __attribute__((__packed__)) FAT
 {
@@ -28,7 +28,7 @@ struct __attribute__((__packed__)) FAT
 		16-bit unsigned words as many entries as data blocks in disk
 		kinda confused on what goes inside here...
 	*/
-}
+};
 
 struct __attribute__((__packed__)) rootdirectory
 {
@@ -38,7 +38,7 @@ struct __attribute__((__packed__)) rootdirectory
 		(2 bytes) Index of the first data block
 		(10 bytes) Unused/Padding
 	*/
-}
+};
 
 int fs_mount(const char *diskname)
 {
