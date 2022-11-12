@@ -8,7 +8,8 @@
 #include "disk.h"
 #include "fs.h"
 
-#define EOC 0xFFFF
+#define FAT_EOC 0xFFFF
+#define FAT_FREE 0
 
 #define disk_error(fmt, ...) \
 	fprintf(stderr, "%s: "fmt"\n", __func__, ##__VA_ARGS__)
@@ -62,8 +63,6 @@ struct rootdirectory *rootDirectory;
 
 int fs_mount(const char *diskname)
 {
-	/* TODO: Phase 1 */
-	/*open the disk */
 	/*
 	fs_mount() makes the file system contained 
 	in the specified virtual disk “ready to be used”.
@@ -101,7 +100,7 @@ int fs_mount(const char *diskname)
 	}
 
 	//checking signature
-	if (strcmp(superBlock->signature, "ECS150FS") != 0){
+	if (memcmp(superBlock->signature, "ECS150FS", 8) != 0){
 		disk_error("Signature not matched");
 		return -1;
 	}
@@ -125,8 +124,8 @@ int fs_mount(const char *diskname)
 	}
 
 	//rootDirectory initialization
-	rootDirectory = malloc(sizeof(struct rootdirectory));
-	if (block_read(superBlock->rootBlockIndex,(void *)rootDirectory) == -1)
+	rootDirectory = malloc(sizeof(struct rootdirectory)* FS_FILE_MAX_COUNT);
+	if (block_read(superBlock->numBlocksFAT+1,(void *)rootDirectory) == -1)
 	{
 		disk_error("Cannot read from root directory block");
 		return -1;
@@ -143,7 +142,32 @@ int fs_umount(void)
 
 int fs_info(void)
 {
-	/* TODO: Phase 1 */
+	//Count the number of free spaces in FAT array
+	int fatFreeSpaceCount = 0;
+	for (int i = 0; i < superBlock->numDataBlocks; i++)
+	{
+		if(fatArray[i].next == FAT_FREE)
+		{
+			fatFreeSpaceCount++;
+		}
+	}
+
+	//count the number of free root directories
+	int freeRootDirectoryCount = 0;
+	for ( int  i=0; i< FS_FILE_MAX_COUNT; i++){
+		if ( rootDirectory[i].sizeOfFile == 0){
+			freeRootDirectoryCount++;
+		}
+	}
+
+	printf("FS Info:");
+	printf("total_blk_count: %d\n", superBlock->numBlockVirtualDisk );
+	printf("fat_blk_count: %d\n", superBlock->numBlocksFAT );
+	printf("rdir_blk: %d\n", superBlock->numBlocksFAT+1);
+	printf("data_blk: %d\n", superBlock->numBlocksFAT+2 );
+	printf("data_blk_count: %d\n", superBlock->numDataBlocks);
+	printf("fat_free_ratio: %d/%d\n", fatFreeSpaceCount, superBlock->numDataBlocks);
+	printf("rdir_free_ratio: %d/%d\n", freeRootDirectoryCount, FS_FILE_MAX_COUNT);
 	return 0;
 }
 
