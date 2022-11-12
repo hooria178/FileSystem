@@ -48,6 +48,24 @@ struct FAT *fatArray;
 struct rootdirectory *rootDirectory;
 bool disk_open = false;
 
+
+ //HELPER FUNCTIONS
+// int countOfRootDirectoryFiles(struct *rootdirectory){
+// 	// int occupiedFileCount = 0;
+// 	int freeRootDirectoryCount = 0;
+// 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+// 	{
+// 		if (rootDirectory[i].sizeOfFile == 0)
+// 		{
+// 			freeRootDirectoryCount++;
+// 		}
+// 	}
+// 	int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
+// 	return occupiedFileCount;
+
+// }
+ 
+
 int fs_mount(const char *diskname)
 {
 	// open disk
@@ -210,10 +228,63 @@ int fs_info(void)
 }
 
 int fs_create(const char *filename)
-{
-	/* TODO: Phase 2 */
+{	
+	/*Error: No FS currently mounted*/
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		return -1;
+	}
+	/*Error: invalid filename*/
+	int lengthOfFilename = strlen(filename);
+	if (&filename[lengthOfFilename] != NULL){
+		disk_error("Invalid filename");
+		return -1;
+	}
+	/*Error: filename too long*/
+	if (lengthOfFilename > FS_FILENAME_LEN){
+		disk_error("Filename too long");
+		return -1;
+	}
+	/*Error: file already exists*/
+	if (!strcmp(rootDirectory->fileName, filename)){
+		disk_error("File already exists");
+		return -1;
+	}
+	
+	/*Error: Root directory already contains the max amount of files*/
+	// count the number of free root directories
+	int freeRootDirectoryCount = 0;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (rootDirectory[i].sizeOfFile == 0)
+		{
+			freeRootDirectoryCount++;
+		}
+	}
+	if(freeRootDirectoryCount == FS_FILE_MAX_COUNT)
+	{
+		disk_error("Max amount of files in root directory");
+		return -1;
+	}
+
+	/*Go through the root directory and find the entry where everything is NULL*/
+	for(int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		//ASK TA: ASK if have nothing for filename, but has data ( size and index)
+		if(lengthOfFilename == 0) //ASK TA: how to check file size and first index? 
+		{
+			strcpy(rootDirectory[i].fileName, filename);
+			rootDirectory[i].sizeOfFile = 0;
+			rootDirectory[i].firstIndex = FAT_EOC;	
+		}
+	}
 	return 0;
 }
+
+/* Removing a file is the opposite procedure: the file’s entry must be emptied and all the data blocks 
+containing the file’s contents must be freed in the FAT.*/
+
 
 int fs_delete(const char *filename)
 {
@@ -223,7 +294,31 @@ int fs_delete(const char *filename)
 
 int fs_ls(void)
 {
-	/* TODO: Phase 2 */
+	/*Error: No FS currently mounted*/
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		return -1;
+	}
+	
+	int freeRootDirectoryCount = 0;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (rootDirectory[i].sizeOfFile == 0)
+		{
+			freeRootDirectoryCount++;
+		}
+	}
+	int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
+
+	printf("FS Ls:\n");
+	for(int i = 0; i < occupiedFileCount; i++)
+	{
+		printf("file: %s, size: %d, data_blk: %d\n", 
+		rootDirectory[i].fileName, rootDirectory[i].sizeOfFile, rootDirectory[i].firstIndex);
+		/*file: test_fs.c, size: 11383, data_blk: 1*/
+	}
+
 	return 0;
 }
 
