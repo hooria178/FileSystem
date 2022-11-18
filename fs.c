@@ -47,7 +47,7 @@ struct superblock *superBlock;
 struct FAT *fatArray;
 struct rootdirectory *rootDirectory;
 bool disk_open = false;
-bool file_open = true;
+bool file_open = false;
 
 // HELPER FUNCTIONS
 // int countOfRootDirectoryFiles(struct *rootdirectory){
@@ -302,13 +302,6 @@ int fs_create(const char *filename)
 			rootDirectory[i].sizeOfFile = 0;
 			rootDirectory[i].firstIndex = FAT_EOC;
 
-			//copy contents from host file into new created file 
-			// printf("%d\n",superBlock->rootBlockIndex ); //3
-			
-			//block_write(superBlock->rootBlockIndex, rootDirectory);
-			// printf("Filename: %s\n", rootDirectory[i].fileName);
-			// printf("Size: %d\n", rootDirectory[i].sizeOfFile); //0
-			// printf("Start index: %d\n", rootDirectory[i].firstIndex); 
 
 			return 0;
 		}
@@ -329,6 +322,23 @@ containing the file’s contents must be freed in the FAT.*/
  * Return: -1 if @filename is invalid, if there is no file named @filename to
  * delete, or if file @filename is currently open. 0 otherwise.
  */
+
+ /*
+		Error checking:
+		
+		1. First find the file with the file name
+		2. If there is a file existing in the root directory
+			to delete, then take that its first data block's index 
+				to start the deleting process
+		3. Clearing the file from the fat array
+			1. From the first data block's index, access its content,  map on to the fat array
+				and set it to 0.
+			2. But before setting it to 0, take its content "next", and 
+				use that info to get the next data block's entry
+			3. Do this until reached FAT_EOC as the entry
+			4. Then set that fat array's entry to 0
+		
+*/
 int fs_delete(const char *filename)
 {
 	/*Error: No FS is currently mounted*/
@@ -344,6 +354,7 @@ int fs_delete(const char *filename)
 		disk_error("Invalid filename");
 		return -1;
 	}
+	
 	/*Error: No file exists with the @filename */
 	int freeRootDirectoryCount = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
@@ -373,17 +384,39 @@ int fs_delete(const char *filename)
 	}
 	
 	/*Error: file @filename is currently open */
-	if (file_open == true){
+	if (file_open == true)
+	{
 		disk_error("%s currently open\n", filename); //check for compilation
 		return -1;
 	}
-	//go thru root directory and delete 
-	//empty entries
-	for ( int i = 0; i < FS_FILE_MAX_COUNT; i++){
-		if( strlen(rootDirectory[i].fileName) > 0){
+
+	/*all the data blocks containing the file’s contents must be freed in the FAT.*/
+	printf("Checkpoint 1\n");
+	for(int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		printf("entering  for\n");
+		if((strlen(rootDirectory[i].fileName) > 0) && (strcmp(rootDirectory[i].fileName, filename) == 0))
+		{
+			printf("Found the file with the file name\n");
 			rootDirectory[i].fileName[0]='\0';
-		}
-	}
+			//rootDirectory[i].firstIndex = 2
+			if (rootDirectory[i].sizeOfFile > 0)
+			{
+				uint16_t fatIndex = rootDirectory[i].firstIndex;//2 index
+				uint16_t nextFat = fatArray[rootDirectory[i].firstIndex].next; //3 content
+				while (nextFat != FAT_EOC)
+				{
+					printf("Entering while\n");
+					fatIndex = nextFat; // 2-> 3 index
+					nextFat = 0; // 3-> 0 content
+					nextFat = fatArray[fatIndex].next;
+				}//end while
+		
+			nextFat = 0; 
+			}// end if 		
+		} //end if		
+	}//end for 
+	
 	
 	return 0;
 }
@@ -410,10 +443,27 @@ int fs_ls(void)
 
 	return 0;
 }
-
+/**
+ * fs_open - Open a file
+ * @filename: File name
+ *
+ * Open file named @filename for reading and writing, and return the
+ * corresponding file descriptor. The file descriptor is a non-negative integer
+ * that is used subsequently to access the contents of the file. The file offset
+ * of the file descriptor is set to 0 initially (beginning of the file). If the
+ * same file is opened multiple files, fs_open() must return distinct file
+ * descriptors. A maximum of %FS_OPEN_MAX_COUNT files can be open
+ * simultaneously.
+ *
+ * Return: -1 if no FS is currently mounted, or if @filename is invalid, or if
+ * there is no file named @filename to open, or if there are already
+ * %FS_OPEN_MAX_COUNT files currently open. Otherwise, return the file
+ * descriptor.
+ */
 int fs_open(const char *filename)
 {
 	/* TODO: Phase 3 */
+	int fd;
 	return 0;
 }
 
