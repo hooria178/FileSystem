@@ -11,6 +11,7 @@
 
 #define FAT_EOC 0xFFFF
 #define FAT_FREE 0
+#define FD_MAX 32
 
 #define disk_error(fmt, ...) \
 	fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
@@ -460,12 +461,88 @@ int fs_ls(void)
  * %FS_OPEN_MAX_COUNT files currently open. Otherwise, return the file
  * descriptor.
  */
+
+struct __attribute__((__packed__)) fdTable {
+	char fileName[FS_FILENAME_LEN]; //(16 bytes) Filename
+	int fd;
+	int file_offset;
+	bool empty; //true initially
+	// int fd_count; //max 32
+};
+struct fdTable *fdArray[FD_MAX];
+
 int fs_open(const char *filename)
 {
 	/* TODO: Phase 3 */
-	int fd;
-	return 0;
+	/*Error: No FS currently mounted */
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		return -1;
+	}
+
+	/*Error: Filename is invalid */
+	int lengthOfFilename = strlen(filename);
+	if (filename[lengthOfFilename] != '\0')
+	{
+		disk_error("Invalid filename");
+		return -1;
+	}
+
+	/*Error: No file named @filename exists */
+	/* MAKE A HELPER FUNCTION*/
+	int count = 0;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		int lengthOfRootFile = strlen(rootDirectory[i].fileName);
+		//printf("Coming here in for loop\n");
+		if ( (lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)) )
+		{
+			printf("Compared !!");
+			count++;	
+		}
+	}
+	if (count == 0){
+		disk_error("No file with that filename");
+		return -1;
+	}
+	//int sizeOfFdArray = sizeof fdArray / sizeof fdArray[0];
+	//if fd array is empty , insert file to first index
+	int fdToReturn = -1;
+	
+	for(int i = 0; i < FD_MAX; i++){
+		if(fdArray[i]->empty == true)
+		{
+			strcpy(fdArray[i]->fileName, filename);
+			fdArray[i]->fd = i;
+			fdArray[i]->file_offset = 0;
+			fdArray[i]->empty = false;
+			fdToReturn = fdArray[i]->fd;
+		}	
+	}
+	if (fdToReturn == -1){
+		disk_error("No fd was found and allocated");
+		return -1;
+	}
+	return fdToReturn;
 }
+	
+
+
+	//fdArray = {0{ filename, fd[0], fileoffset}, -1, 2, .... fd31}
+
+	//if fd array not empty,traverse it, find empty spot, assign it to filename
+
+	/*
+		1. Find first available file descriptor
+			1. maybe have a flag that tells if the file descriptor is available or not
+		2. When found:
+			1. Set available flag to unavailable
+			2. Set file offset to 0
+			3. Set fd's filename to the filename input
+
+	*/
+
 
 int fs_close(int fd)
 {
@@ -493,6 +570,6 @@ int fs_write(int fd, void *buf, size_t count)
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
+ 	/* TODO: Phase 4 */
 	return 0;
 }
