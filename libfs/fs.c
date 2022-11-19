@@ -466,7 +466,7 @@ struct __attribute__((__packed__)) fdTable
 	int fd;
 	int file_offset;
 	bool empty; // true initially
-	// int fd_count; //max 32
+				// int fd_count; //max 32
 };
 
 struct fdTable *fdArray[FD_MAX];
@@ -556,16 +556,10 @@ int fs_close(int fd)
 		disk_error("No FS mounted");
 		return -1;
 	}
-	/*Error: File descriptor is out of bounds */
-	if (fd > FD_MAX || fd < 0)
+	/*Error: File descriptor is invalid */
+	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
 	{
-		// disk_error("file descriptor out of bounds");
-		return -1;
-	}
-	/*Error: File descriptor is not currently open*/
-	if (fdArray[fd]->empty == true)
-	{
-		// disk_error("File decriptor is not currently open");
+		// disk_error("file descriptor is invalid");
 		return -1;
 	}
 
@@ -576,18 +570,60 @@ int fs_close(int fd)
 		3. Set file_offset back to 0
 		4. Set the index in fdArray to being empty (aka empty == true)
 	*/
-	strcpy(fdArray[i]->fileName, NULL);
+	strcpy(fdArray[fd]->fileName, "");
 	fdArray[fd]->fd = -1;
-	fdArray[i]->file_offset = 0;
-	fdArray[i]->empty = true;
+	fdArray[fd]->file_offset = 0;
+	fdArray[fd]->empty = true;
 
 	return 0;
 }
 
+/**
+ * fs_stat - Get file status
+ * @fd: File descriptor
+ *
+ * Get the current size of the file pointed by file descriptor @fd.
+ *
+ * Return: -1 if no FS is currently mounted, of if file descriptor @fd is
+ * invalid (out of bounds or not currently open). Otherwise return the current
+ * size of file.
+ */
 int fs_stat(int fd)
 {
 	/* TODO: Phase 3 */
-	return 0;
+	/*Error: No FS currently mounted */
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		return -1;
+	}
+	/*Error: File descriptor is invalid */
+	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	{
+		// disk_error("file descriptor is invalid");
+		return -1;
+	}
+
+	/*
+		1. From the file descriptor, find filename
+		2. From filename find the current size of the file
+	*/
+
+	int fdFileSize = -1;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (fdArray[fd]->fileName == rootDirectory[i].fileName)
+		{
+			fdFileSize = rootDirectory[i].sizeOfFile;
+			break;
+		}
+	}
+	if (fdFileSize == -1)
+	{
+		disk_error("file does not exist");
+		return -1;
+	}
+	return fdFileSize;
 }
 
 int fs_lseek(int fd, size_t offset)
