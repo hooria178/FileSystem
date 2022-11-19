@@ -626,9 +626,42 @@ int fs_stat(int fd)
 	return fdFileSize;
 }
 
+/**
+ * fs_lseek - Set file offset
+ * @fd: File descriptor
+ * @offset: File offset
+ *
+ * Set the file offset (used for read and write operations) associated with file
+ * descriptor @fd to the argument @offset. To append to a file, one can call
+ * fs_lseek(fd, fs_stat(fd));
+ *
+ * Return: -1 if no FS is currently mounted, or if file descriptor @fd is
+ * invalid (i.e., out of bounds, or not currently open), or if @offset is larger
+ * than the current file size. 0 otherwise.
+ */
 int fs_lseek(int fd, size_t offset)
 {
 	/* TODO: Phase 3 */
+	/*Error: No FS currently mounted */
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		return -1;
+	}
+	/*Error: File descriptor is invalid */
+	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	{
+		// disk_error("file descriptor is invalid");
+		return -1;
+	}
+	/*Error: Offset is larger than the current file size*/
+
+	/*
+		1. find the file associated with the file descriptor
+		2. move file's offset to the @offset
+	*/
+	fdArray[fd]->file_offset = offset;
+
 	return 0;
 }
 
