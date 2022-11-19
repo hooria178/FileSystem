@@ -655,7 +655,11 @@ int fs_lseek(int fd, size_t offset)
 		return -1;
 	}
 	/*Error: Offset is larger than the current file size*/
-
+	if (offset > fs_stat(fd))
+	{
+		// disk_error("@offset is larger than the current file size");
+		return -1;
+	}
 	/*
 		1. find the file associated with the file descriptor
 		2. move file's offset to the @offset
