@@ -16,7 +16,6 @@
 #define disk_error(fmt, ...) \
 	fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
 
-
 struct __attribute__((__packed__)) superblock
 {
 	char signature[8];			  //(8 characters) signature
@@ -546,8 +545,123 @@ int fs_write(int fd, void *buf, size_t count)
 	return 0;
 }
 
+/*
+For these functions, you will probably need a few helper functions.
+For example, you will need a function that returns the index of the
+data block corresponding to the file’s offset
+When reading or writing a certain number of bytes from/to a file,
+you will also need to deal properly with possible “mismatches” between
+the file’s current offset, the amount of bytes to read/write, the size
+of blocks, etc.
+For example, let’s assume a reading operation for which the file’s offset
+is not aligned to the beginning of the block or the amount of bytes to read
+doesn’t span the whole block. You will probably need to read the entire block
+into a bounce buffer first, and then copy only the right amount of bytes from
+the bounce buffer into the user-supplied buffer.
+*/
+
+/**
+ * fs_read - Read from a file
+ * @fd: File descriptor
+ * @buf: Data buffer to be filled with data
+ * @count: Number of bytes of data to be read
+ *
+ * Attempt to read @count bytes of data from the file referenced by file
+ * descriptor @fd into buffer pointer by @buf. It is assumed that @buf is large
+ * enough to hold at least @count bytes.
+ *
+ * The number of bytes read can be smaller than @count if there are less than
+ * @count bytes until the end of the file (it can even be 0 if the file offset
+ * is at the end of the file). The file offset of the file descriptor is
+ * implicitly incremented by the number of bytes that were actually read.
+ *
+ * Return: -1 if no FS is currently mounted, or if file descriptor @fd is
+ * invalid (out of bounds or not currently open), or if @buf is NULL. Otherwise
+ * return the number of bytes actually read.
+ */
+
+// start reading
+/* 3 cases:
+(1) Small operations -> Less than a block
+(2) First/last block on big operations
+Access entire blocks except first or last
+block of operation
+Partial access on first or last block
+(3) Full block
+*/
+
+/*
+	1. Using the file descriptor @fd, find its location in the root directory to
+		get its file size and index of the first data block
+	2. Check actually what is the number of bytes to be read because of the file offset position
+		a. Smaller than @count
+		b. Exactly @count
+	3. Create bounce buffer to temporarily store data from the entire data block
+	4. Find in the fat array, the current block index, to map out the data block to get data from
+	5. Intialize a variable for the offset in bounce buffer where to start reading data from
+	6. Read block by block into the bounce buffer through block_read()
+	7. memcpy() from bounce buffer to user buffer @buf, the amount of data needed
+	8. Add to the fd's offset in the fdArray the number of bytes actually read
+	9. Return the number of bytes actually read
+*/
 int fs_read(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	return 0;
+	/*Error: No FS currently mounted, file descriptor is invalid,
+		or @buf is NULL*/
+	if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || buf == NULL)
+	{
+		return -1;
+	}
+
+	/*Find the location of the file in the root directory to access its attributes */
+	int fileLocation = 0;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (strncmp(fdArray[fd].fileName, rootDirectory[i].fileName, FS_FILENAME_LEN) == 0)
+		{
+			fileLocation = i;
+		}
+	}
+
+	/*Check actually what is the number of bytes to be read because of the file offset position
+		a. Smaller than @count
+		b. Exactly @count
+	*/
+	int countOfBytesToRead = 0;
+	if (fdArray[fd].file_offset + count > rootDirectory[fileLocation].sizeOfFile)
+	{
+		countOfBytesToRead = rootDirectory[fileLocation].sizeOfFile - fdArray[fd].file_offset;
+	}
+	else
+	{
+		countOfBytesToRead = count;
+	}
+
+	/*Create bounce buffer*/
+	char bounce_buf[BLOCK_SIZE];
+	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE;
+	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE; // 50 / 16 = 3
+
+	/*Find in the fat array, the current block index, to map out the data block to get data from*/
+	/*
+		1. Start from the first index of the data block
+		2. Keep on going to the next data block until reached the current block number
+		3. Set the currentFATBlockIndex to current data block index
+	*/
+	int currentFATBlockIndex = rootDirectory->firstIndex;
+	for (int i = 0; i < currBlockNum; i++)
+	{
+		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+	}
+
+	/*
+	.
+	.
+	.
+	*/
+
+	/*Variable to store the number of bytes actually read*/
+	int numBytesRead = 0;
+
+	return numBytesRead;
 }
