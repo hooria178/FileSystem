@@ -580,7 +580,20 @@ the bounce buffer into the user-supplied buffer.
  * return the number of bytes actually read.
  */
 
-
+/*
+	1. Using the file descriptor @fd, find its location in the root directory to 
+		get its file size and index of the first data block
+	2. Check actually what is the number of bytes to be read because of the file offset position
+		a. Smaller than @count
+		b. Exactly @count
+	3. Create bounce buffer to temporarily store data from the entire data block
+	4. Find in the fat array, the current block index, to map out the data block to get data from
+	5. Intialize a variable for the offset in bounce buffer where to start reading data from
+	6. Read block by block into the bounce buffer through block_read()
+	7. memcpy() from bounce buffer to user buffer @buf, the amount of data needed
+	8. Add to the fd's offset in the fdArray the number of bytes actually read
+	9. Return the number of bytes actually read
+*/
 int fs_read(int fd, void *buf, size_t count)
 {
 	/* TODO: Phase 4 */
