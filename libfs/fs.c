@@ -48,8 +48,8 @@ struct __attribute__((__packed__)) fdTable
 	char fileName[FS_FILENAME_LEN]; //(16 bytes) Filename
 	int fd;
 	int file_offset;
-	bool empty; // true initially
-				// int fd_count; //max 32
+	int empty; // 0 default empty = 0, full = 1
+	int open;  // 0=close, 1 = open
 };
 
 // creating objects of structs
@@ -58,7 +58,7 @@ struct FAT *fatArray;
 struct rootdirectory *rootDirectory;
 bool disk_open = false;
 bool file_open = false;
-struct fdTable *fdArray[FD_MAX];
+struct fdTable *fdArray;
 
 /* HELPER FUNCTIONS */
 
@@ -127,15 +127,16 @@ bool checkIfFileExists(const char *filename)
 bool checkFileDescriptorValid(int fd)
 {
 	bool fdValid = true;
-	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	if (fd > FD_MAX || fd < 0 || fdArray[fd].open == 0)
 	{
-		// disk_error("file descriptor is invalid");
+		disk_error("file descriptor is invalid");
 		fdValid = false;
 	}
 	return fdValid;
 }
 
 /*MAIN FUNCTIONS */
+
 int fs_mount(const char *diskname)
 {
 	// open disk
@@ -192,6 +193,8 @@ int fs_mount(const char *diskname)
 		disk_error("Cannot read from root directory block");
 		return -1;
 	}
+
+	fdArray = malloc(sizeof(struct fdTable) * FD_MAX);
 
 	return 0;
 }
@@ -299,42 +302,6 @@ int fs_info(void)
 
 int fs_create(const char *filename)
 {
-	// /*Error: No FS currently mounted*/
-	// printf("%d\n", checkIfFileOpen(superBlock));
-	// if (!superBlock)
-	// {
-	// 	disk_error("No FS mounted");
-	// 	return -1;
-	// }
-	// /*Error: invalid filename*/
-	// int lengthOfFilename = strlen(filename);
-	// if (filename[lengthOfFilename] != '\0')
-	// {
-	// 	disk_error("Invalid filename");
-	// 	return -1;
-	// }
-	// /*Error: filename too long*/
-	// if (lengthOfFilename > FS_FILENAME_LEN)
-	// {
-	// 	disk_error("Filename too long");
-	// 	return -1;
-	// }
-	// printf("%d\n", checkFileNameValid(filename));
-	// /* CHECK IF THIS WORKS */
-	// /*Error: file already exists*/
-	// /*checkIfFileExists == 1 THEN ITS AN ERROR*/
-	// printf("file existence in create: %d\n", checkIfFileExists(filename));
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	// printf("Coming here in for loop\n");
-	// 	if (!strcmp(rootDirectory[i].fileName, filename))
-	// 	{
-	// 		// disk_error();
-	// 		return -1;
-	// 	}
-	// }
-	// printf("file existence in create: %d\n", checkIfFileExists(filename));
-	/* */
 
 	/*Error Management: No FS currently mounted, Invalid file name,
 		or file already exists*/
@@ -359,6 +326,7 @@ int fs_create(const char *filename)
 		disk_error("Max amount of files in root directory");
 		return -1;
 	}
+
 	// ASK TA : OUTPUT
 	/*
 	mzubair@COE-CS-pc17:~/project3/apps$ ./test_fs.x add disk.fs test_fs.c
@@ -406,7 +374,6 @@ containing the file’s contents must be freed in the FAT.*/
 
 /*
 	   Error checking:
-
 	   1. First find the file with the file name
 	   2. If there is a file existing in the root directory
 		   to delete, then take that its first data block's index
@@ -418,53 +385,9 @@ containing the file’s contents must be freed in the FAT.*/
 			   use that info to get the next data block's entry
 		   3. Do this until reached FAT_EOC as the entry
 		   4. Then set that fat array's entry to 0
-
 */
 int fs_delete(const char *filename)
 {
-	// /*Error: No FS is currently mounted*/
-	// if (!superBlock)
-	// {
-	// 	disk_error("No FS mounted");
-	// 	return -1;
-	// }
-	// /*Error: Filename is invalid*/
-	// int lengthOfFilename = strlen(filename);
-	// if (filename[lengthOfFilename] != '\0')
-	// {
-	// 	disk_error("Invalid filename");
-	// 	return -1;
-	// }
-	// /*Error: No file exists with the @filename */
-	// /*checkIfFileExists == 0 THEN ITS AN ERROR*/
-	// int freeRootDirectoryCount = 0;
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	// int lenghtOfRootFile = strlen(rootDirectory[i].fileName);
-	// 	if (rootDirectory[i].fileName[0] == '\0')
-	// 	{
-	// 		freeRootDirectoryCount++;
-	// 	}
-	// }
-	// int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
-	// printf("occupiedFileCount = %d\n", occupiedFileCount);
-	// int count = 0;
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	int lengthOfRootFile = strlen(rootDirectory[i].fileName);
-	// 	// printf("Coming here in for loop\n");
-	// 	if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
-	// 	{
-	// 		printf("Compared !!\n");
-	// 		count++;
-	// 	}
-	// }
-	// if (count == 0)
-	// {
-	// 	// disk_error("No file with that filename");
-	// 	return -1;
-	// }
-	// printf("file existence in delete: %d\n", checkIfFileExists(filename));
 
 	/*Error Management: No FS currently mounted, Invalid file name,
 		or file does not exist*/
@@ -549,51 +472,18 @@ int fs_ls(void)
  * descriptor.
  */
 
-// struct __attribute__((__packed__)) fdTable
-// {
-// 	char fileName[FS_FILENAME_LEN]; //(16 bytes) Filename
-// 	int fd;
-// 	int file_offset;
-// 	bool empty; // true initially
-// 				// int fd_count; //max 32
-// };
-
-// struct fdTable *fdArray[FD_MAX];
+// setting empty = true for all fd's
+//  void initializeEmpty(void ){
+//  	for (int i=0; i<FD_MAX; i++){
+//  		printf("ENTERING FOR LOOP");
+//  		printf("%d\n", fdArray[i]->empty);
+//  		fdArray[i]->empty = true;
+//  	}
+//  }
+//  initializeEmpty();
 
 int fs_open(const char *filename)
 {
-	printf("In fs_open function\n");
-	// /*Error: No FS currently mounted */
-	// if (!superBlock)
-	// {
-	// 	disk_error("No FS mounted");
-	// 	return -1;
-	// }
-	// /*Error: Filename is invalid */
-	// int lengthOfFilename = strlen(filename);
-	// if (filename[lengthOfFilename] != '\0')
-	// {
-	// 	disk_error("Invalid filename");
-	// 	return -1;
-	// }
-	// /*Error: No file named @filename exists */
-	// /* MAKE A HELPER FUNCTION*/
-	// int count = 0;
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	int lengthOfRootFile = strlen(rootDirectory[i].fileName);
-	// 	// printf("Coming here in for loop\n");
-	// 	if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
-	// 	{
-	// 		printf("Compared !!");
-	// 		count++;
-	// 	}
-	// }
-	// if (count == 0)
-	// {
-	// 	disk_error("No file with that filename");
-	// 	return -1;
-	// }
 
 	/*Error Management: No FS currently mounted, Invalid file name,
 		or file does not exist*/
@@ -602,19 +492,25 @@ int fs_open(const char *filename)
 		return -1;
 	}
 
-	// int sizeOfFdArray = sizeof fdArray / sizeof fdArray[0];
-	// if fd array is empty , insert file to first index
 	int fdToReturn = -1;
 
 	for (int i = 0; i < FD_MAX; i++)
 	{
-		if (fdArray[i]->empty == true)
+		printf("Checkpoint 2\n");
+		printf("%d\n", fdArray[i].empty);
+		printf("Checkpoint 3\n");
+		if (fdArray[i].empty == 0)
 		{
-			strcpy(fdArray[i]->fileName, filename);
-			fdArray[i]->fd = i;
-			fdArray[i]->file_offset = 0;
-			fdArray[i]->empty = false;
-			fdToReturn = fdArray[i]->fd;
+			printf("Checkpoint 4\n");
+			strcpy(fdArray[i].fileName, filename);
+			fdArray[i].fd = i;
+			fdArray[i].file_offset = 0;
+			fdArray[i].empty = 1;
+			fdArray[i].open = 1;
+			fdToReturn = fdArray[i].fd;
+			file_open = true;
+
+			return fdToReturn;
 		}
 	}
 	if (fdToReturn == -1)
@@ -622,7 +518,7 @@ int fs_open(const char *filename)
 		disk_error("No fd was found and allocated");
 		return -1;
 	}
-	return fdToReturn;
+	return -1;
 }
 /*
 	1. Find first available file descriptor
@@ -631,7 +527,6 @@ int fs_open(const char *filename)
 		1. Set available flag to unavailable
 		2. Set file offset to 0
 		3. Set fd's filename to the filename input
-
 */
 
 /**
@@ -646,13 +541,6 @@ int fs_open(const char *filename)
 int fs_close(int fd)
 {
 	/* TODO: Phase 3 */
-
-	// /*Error Management: No FS currently mounted, Invalid file descriptor*/
-	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0)
-	// {
-	// 	return -1;
-	// }
-
 	/*Error: No FS currently mounted */
 	if (checkIfFileOpen(superBlock) == 0)
 	{
@@ -660,7 +548,7 @@ int fs_close(int fd)
 	}
 
 	/*Error: File descriptor is invalid */
-	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	if (fd > FD_MAX || fd < 0 || fdArray[fd].open == 0)
 	{
 		// disk_error("file descriptor is invalid");
 		return -1;
@@ -673,10 +561,11 @@ int fs_close(int fd)
 		3. Set file_offset back to 0
 		4. Set the index in fdArray to being empty (aka empty == true)
 	*/
-	strcpy(fdArray[fd]->fileName, "");
-	fdArray[fd]->fd = -1;
-	fdArray[fd]->file_offset = 0;
-	fdArray[fd]->empty = true;
+	strcpy(fdArray[fd].fileName, "");
+	fdArray[fd].fd = -1;
+	fdArray[fd].file_offset = 0;
+	fdArray[fd].empty = true;
+	file_open = false;
 
 	return 0;
 }
@@ -693,23 +582,14 @@ int fs_close(int fd)
  */
 int fs_stat(int fd)
 {
-	printf("In fs_stat function\n");
 	/* TODO: Phase 3 */
-
-	// /*Error Management: No FS currently mounted, Invalid file descriptor*/
-	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0)
-	// {
-	// 	return -1;
-	// }
-
 	/*Error: No FS currently mounted */
 	if (checkIfFileOpen(superBlock) == 0)
 	{
 		return -1;
 	}
 	/*Error: File descriptor is invalid */
-	printf("file descriptor is valid? %d\n", checkFileDescriptorValid(fd));
-	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	if (fd > FD_MAX || fd < 0 || fdArray[fd].open == 0)
 	{
 		// disk_error("file descriptor is invalid");
 		return -1;
@@ -723,7 +603,7 @@ int fs_stat(int fd)
 	int fdFileSize = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		if (fdArray[fd]->fileName == rootDirectory[i].fileName)
+		if (fdArray[fd].fileName == rootDirectory[i].fileName)
 		{
 			fdFileSize = rootDirectory[i].sizeOfFile;
 			break;
@@ -753,27 +633,17 @@ int fs_stat(int fd)
 int fs_lseek(int fd, size_t offset)
 {
 	/* TODO: Phase 3 */
-
-	// /*Error Management: No FS currently mounted, Invalid file descriptor,
-	// 	or offset is larger than the current file size*/
-	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || offset > fs_stat(fd))
-	// {
-	// 	return -1;
-	// }
-
 	/*Error: No FS currently mounted */
-	if (!superBlock)
+	if (checkIfFileOpen(superBlock) == 0)
 	{
-		disk_error("No FS mounted");
 		return -1;
 	}
 	/*Error: File descriptor is invalid */
-	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
+	if (fd > FD_MAX || fd < 0 || fdArray[fd].open == 0)
 	{
 		// disk_error("file descriptor is invalid");
 		return -1;
 	}
-
 	/*Error: Offset is larger than the current file size*/
 	if (offset > fs_stat(fd))
 	{
@@ -784,7 +654,7 @@ int fs_lseek(int fd, size_t offset)
 		1. find the file associated with the file descriptor
 		2. move file's offset to the @offset
 	*/
-	fdArray[fd]->file_offset = offset;
+	fdArray[fd].file_offset = offset;
 
 	return 0;
 }
