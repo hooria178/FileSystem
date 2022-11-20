@@ -51,20 +51,69 @@ bool disk_open = false;
 bool file_open = false;
 
 // HELPER FUNCTIONS
-// int countOfRootDirectoryFiles(struct *rootdirectory){
-// 	// int occupiedFileCount = 0;
-// 	int freeRootDirectoryCount = 0;
-// 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-// 	{
-// 		if (rootDirectory[i].sizeOfFile == 0)
-// 		{
-// 			freeRootDirectoryCount++;
-// 		}
-// 	}
-// 	int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
-// 	return occupiedFileCount;
 
-// }
+/*Checks if file is currently mounted */
+bool checkIfFileOpen(struct superblock *superBlock)
+{
+	bool fileOpen = true;
+	if (!superBlock)
+	{
+		disk_error("No FS mounted");
+		fileOpen = false;
+	}
+	return fileOpen;
+}
+
+/*Checks if filename is invalid */
+/*Invalid if:
+	1. filename's total length exceeds the FS_FILENAME_LEN (including the NULL character)
+	2. filename does not end with a NULL character
+*/
+bool checkFileNameValid(const char *filename)
+{
+	bool validFileName = true;
+	int lengthOfFilename = strlen(filename);
+
+	if (filename[lengthOfFilename] != '\0')
+	{
+		disk_error("Invalid filename");
+		validFileName = false;
+	}
+	/*Error: filename too long*/
+	if (lengthOfFilename > FS_FILENAME_LEN)
+	{
+		disk_error("Filename too long");
+		validFileName = false;
+	}
+	return validFileName;
+}
+
+/*Checks if a file exists with the given filename*/
+bool checkIfFileExists(const char *filename)
+{
+	bool fileExists = true;
+	int count = 0;
+
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		int lengthOfRootFile = strlen(rootDirectory[i].fileName);
+
+		if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
+		{
+			printf("Compared !!");
+			count++;
+		}
+	}
+	if (count == 0)
+	{
+		// disk_error("No file with that filename");
+		fileExists = false;
+	}
+	return fileExists;
+}
+/*Checks if file descriptor is invalid*/
+
+/*Checks if root directory already has max amount of files*/
 
 int fs_mount(const char *diskname)
 {
@@ -230,6 +279,11 @@ int fs_info(void)
 int fs_create(const char *filename)
 {
 	/*Error: No FS currently mounted*/
+	// if(checkIfFileOpen(superBlock) == false)
+	// {
+	// 	return -1;
+	// }
+	printf("%d\n", checkIfFileOpen(superBlock));
 	if (!superBlock)
 	{
 		disk_error("No FS mounted");
@@ -248,7 +302,7 @@ int fs_create(const char *filename)
 		disk_error("Filename too long");
 		return -1;
 	}
-
+	printf("%d\n", checkFileNameValid(filename));
 	/*Error: Root directory already contains the max amount of files*/
 	// count the number of free root directories
 	int freeRootDirectoryCount = 0;
@@ -275,10 +329,10 @@ int fs_create(const char *filename)
 	mzubair@COE-CS-pc17:~/project3/apps$ ./fs_ref.x add disk.fs test_fs.c
 	thread_fs_add: Cannot create file
 	*/
+
+	/* CHECK IF THIS WORKS */
 	/*Error: file already exists*/
-	int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
-	// printf("occupiedFileCount = %d\n", occupiedFileCount);
-	for (int i = 0; i < occupiedFileCount; i++)
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
 		// printf("Coming here in for loop\n");
 		if (!strcmp(rootDirectory[i].fileName, filename))
@@ -297,7 +351,7 @@ int fs_create(const char *filename)
 		// find empty spot in root directory
 		if (rootDirectory[i].fileName[0] == '\0') // ASK TA: how to check file size and first index?
 		{
-			printf("inside if statement\n");
+			printf("inside if statement on the %dth iteration\n", i);
 			strcpy(rootDirectory[i].fileName, filename);
 			rootDirectory[i].sizeOfFile = 0;
 			rootDirectory[i].firstIndex = FAT_EOC;
@@ -355,17 +409,17 @@ int fs_delete(const char *filename)
 	}
 
 	/*Error: No file exists with the @filename */
-	int freeRootDirectoryCount = 0;
-	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	{
-		// int lenghtOfRootFile = strlen(rootDirectory[i].fileName);
-		if (rootDirectory[i].fileName[0] == '\0')
-		{
-			freeRootDirectoryCount++;
-		}
-	}
-	int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
-	printf("occupiedFileCount = %d\n", occupiedFileCount);
+	// int freeRootDirectoryCount = 0;
+	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// {
+	// 	// int lenghtOfRootFile = strlen(rootDirectory[i].fileName);
+	// 	if (rootDirectory[i].fileName[0] == '\0')
+	// 	{
+	// 		freeRootDirectoryCount++;
+	// 	}
+	// }
+	// int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
+	// printf("occupiedFileCount = %d\n", occupiedFileCount);
 	int count = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
@@ -432,7 +486,7 @@ int fs_ls(void)
 	printf("FS Ls:\n");
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		/* Only prints out the root directories where it is not empt*/
+		/* Only prints out the root directories where it is not empty*/
 		if (rootDirectory[i].fileName[0] != '\0')
 		{
 			printf("file: %s, size: %d, data_blk: %d\n",
@@ -473,6 +527,7 @@ struct fdTable *fdArray[FD_MAX];
 
 int fs_open(const char *filename)
 {
+	printf("In fs_open function\n");
 	/*Error: No FS currently mounted */
 	if (!superBlock)
 	{
