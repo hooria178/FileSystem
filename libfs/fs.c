@@ -336,11 +336,13 @@ int fs_create(const char *filename)
 	// printf("file existence in create: %d\n", checkIfFileExists(filename));
 	/* */
 
-	/*Error Management: No FS currently mounted, Invalid file name, or file already exists*/
+	/*Error Management: No FS currently mounted, Invalid file name,
+		or file already exists*/
 	if (checkIfFileOpen(superBlock) == 0 || checkFileNameValid(filename) == 0 || checkIfFileExists(filename) == 1)
 	{
 		return -1;
 	}
+
 	/*Error: Root directory already contains the max amount of files*/
 	// count the number of free root directories
 	int freeRootDirectoryCount = 0;
@@ -420,22 +422,21 @@ containing the file’s contents must be freed in the FAT.*/
 */
 int fs_delete(const char *filename)
 {
-	/*Error: No FS is currently mounted*/
-	if (!superBlock)
-	{
-		disk_error("No FS mounted");
-		return -1;
-	}
-	/*Error: Filename is invalid*/
-	int lengthOfFilename = strlen(filename);
-	if (filename[lengthOfFilename] != '\0')
-	{
-		disk_error("Invalid filename");
-		return -1;
-	}
-
-	/*Error: No file exists with the @filename */
-	/*checkIfFileExists == 0 THEN ITS AN ERROR*/
+	// /*Error: No FS is currently mounted*/
+	// if (!superBlock)
+	// {
+	// 	disk_error("No FS mounted");
+	// 	return -1;
+	// }
+	// /*Error: Filename is invalid*/
+	// int lengthOfFilename = strlen(filename);
+	// if (filename[lengthOfFilename] != '\0')
+	// {
+	// 	disk_error("Invalid filename");
+	// 	return -1;
+	// }
+	// /*Error: No file exists with the @filename */
+	// /*checkIfFileExists == 0 THEN ITS AN ERROR*/
 	// int freeRootDirectoryCount = 0;
 	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	// {
@@ -447,23 +448,30 @@ int fs_delete(const char *filename)
 	// }
 	// int occupiedFileCount = FS_FILE_MAX_COUNT - freeRootDirectoryCount;
 	// printf("occupiedFileCount = %d\n", occupiedFileCount);
-	int count = 0;
-	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// int count = 0;
+	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// {
+	// 	int lengthOfRootFile = strlen(rootDirectory[i].fileName);
+	// 	// printf("Coming here in for loop\n");
+	// 	if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
+	// 	{
+	// 		printf("Compared !!\n");
+	// 		count++;
+	// 	}
+	// }
+	// if (count == 0)
+	// {
+	// 	// disk_error("No file with that filename");
+	// 	return -1;
+	// }
+	// printf("file existence in delete: %d\n", checkIfFileExists(filename));
+
+	/*Error Management: No FS currently mounted, Invalid file name,
+		or file does not exist*/
+	if (checkIfFileOpen(superBlock) == 0 || checkFileNameValid(filename) == 0 || checkIfFileExists(filename) == 0)
 	{
-		int lengthOfRootFile = strlen(rootDirectory[i].fileName);
-		// printf("Coming here in for loop\n");
-		if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
-		{
-			printf("Compared !!\n");
-			count++;
-		}
-	}
-	if (count == 0)
-	{
-		// disk_error("No file with that filename");
 		return -1;
 	}
-	printf("file existence in delete: %d\n", checkIfFileExists(filename));
 
 	/*Error: file @filename is currently open */
 	if (file_open == true)
@@ -505,9 +513,8 @@ int fs_delete(const char *filename)
 int fs_ls(void)
 {
 	/*Error: No FS currently mounted*/
-	if (!superBlock)
+	if (checkIfFileOpen(superBlock) == 0)
 	{
-		disk_error("No FS mounted");
 		return -1;
 	}
 
@@ -556,39 +563,45 @@ int fs_ls(void)
 int fs_open(const char *filename)
 {
 	printf("In fs_open function\n");
-	/*Error: No FS currently mounted */
-	if (!superBlock)
+	// /*Error: No FS currently mounted */
+	// if (!superBlock)
+	// {
+	// 	disk_error("No FS mounted");
+	// 	return -1;
+	// }
+	// /*Error: Filename is invalid */
+	// int lengthOfFilename = strlen(filename);
+	// if (filename[lengthOfFilename] != '\0')
+	// {
+	// 	disk_error("Invalid filename");
+	// 	return -1;
+	// }
+	// /*Error: No file named @filename exists */
+	// /* MAKE A HELPER FUNCTION*/
+	// int count = 0;
+	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// {
+	// 	int lengthOfRootFile = strlen(rootDirectory[i].fileName);
+	// 	// printf("Coming here in for loop\n");
+	// 	if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
+	// 	{
+	// 		printf("Compared !!");
+	// 		count++;
+	// 	}
+	// }
+	// if (count == 0)
+	// {
+	// 	disk_error("No file with that filename");
+	// 	return -1;
+	// }
+
+	/*Error Management: No FS currently mounted, Invalid file name,
+		or file does not exist*/
+	if (checkIfFileOpen(superBlock) == 0 || checkFileNameValid(filename) == 0 || checkIfFileExists(filename) == 0)
 	{
-		disk_error("No FS mounted");
 		return -1;
 	}
 
-	/*Error: Filename is invalid */
-	int lengthOfFilename = strlen(filename);
-	if (filename[lengthOfFilename] != '\0')
-	{
-		disk_error("Invalid filename");
-		return -1;
-	}
-
-	/*Error: No file named @filename exists */
-	/* MAKE A HELPER FUNCTION*/
-	int count = 0;
-	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	{
-		int lengthOfRootFile = strlen(rootDirectory[i].fileName);
-		// printf("Coming here in for loop\n");
-		if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
-		{
-			printf("Compared !!");
-			count++;
-		}
-	}
-	if (count == 0)
-	{
-		disk_error("No file with that filename");
-		return -1;
-	}
 	// int sizeOfFdArray = sizeof fdArray / sizeof fdArray[0];
 	// if fd array is empty , insert file to first index
 	int fdToReturn = -1;
@@ -634,11 +647,11 @@ int fs_close(int fd)
 {
 	/* TODO: Phase 3 */
 	/*Error: No FS currently mounted */
-	if (!superBlock)
+	if (checkIfFileOpen(superBlock) == 0)
 	{
-		disk_error("No FS mounted");
 		return -1;
 	}
+
 	/*Error: File descriptor is invalid */
 	if (fd > FD_MAX || fd < 0 || fdArray[fd]->empty == true)
 	{
@@ -676,9 +689,8 @@ int fs_stat(int fd)
 	printf("In fs_stat function\n");
 	/* TODO: Phase 3 */
 	/*Error: No FS currently mounted */
-	if (!superBlock)
+	if(checkIfFileOpen(superBlock) == 0)
 	{
-		disk_error("No FS mounted");
 		return -1;
 	}
 	/*Error: File descriptor is invalid */
