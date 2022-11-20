@@ -646,6 +646,13 @@ int fs_open(const char *filename)
 int fs_close(int fd)
 {
 	/* TODO: Phase 3 */
+
+	// /*Error Management: No FS currently mounted, Invalid file descriptor*/
+	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0)
+	// {
+	// 	return -1;
+	// }
+
 	/*Error: No FS currently mounted */
 	if (checkIfFileOpen(superBlock) == 0)
 	{
@@ -688,8 +695,15 @@ int fs_stat(int fd)
 {
 	printf("In fs_stat function\n");
 	/* TODO: Phase 3 */
+
+	// /*Error Management: No FS currently mounted, Invalid file descriptor*/
+	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0)
+	// {
+	// 	return -1;
+	// }
+
 	/*Error: No FS currently mounted */
-	if(checkIfFileOpen(superBlock) == 0)
+	if (checkIfFileOpen(superBlock) == 0)
 	{
 		return -1;
 	}
@@ -739,6 +753,14 @@ int fs_stat(int fd)
 int fs_lseek(int fd, size_t offset)
 {
 	/* TODO: Phase 3 */
+
+	// /*Error Management: No FS currently mounted, Invalid file descriptor,
+	// 	or offset is larger than the current file size*/
+	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || offset > fs_stat(fd))
+	// {
+	// 	return -1;
+	// }
+
 	/*Error: No FS currently mounted */
 	if (!superBlock)
 	{
