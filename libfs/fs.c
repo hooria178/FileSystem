@@ -16,7 +16,6 @@
 #define disk_error(fmt, ...) \
 	fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
 
-/* TODO: Phase 1 */
 
 struct __attribute__((__packed__)) superblock
 {
@@ -242,6 +241,7 @@ int fs_umount(void)
 	free(superBlock);
 	free(fatArray);
 	free(rootDirectory);
+	free(fdArray);
 
 	/*Error: Virtual disk can not be closed */
 	if (block_disk_close() < 0)
