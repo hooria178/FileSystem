@@ -22,7 +22,7 @@ struct __attribute__((__packed__)) superblock
 	uint16_t numBlockVirtualDisk; //(2 bytes) total amount of blocks of virtual disk
 	uint16_t rootBlockIndex;	  //(2 bytes) root directory block index
 	uint16_t dataBlockStartIndex; //(2 bytes) data block start index
-	uint16_t numDataBlocks;		  // (2 bytes)  amount of data blcoks
+	uint16_t numDataBlocks;		  // (2 bytes)  amount of data blocks
 	uint8_t numBlocksFAT;		  //(1 bytes)// number of blocks for FAT
 	uint8_t padding[4079];		  //(4079 bytes)// unsused/padding  ASK THIS
 };
@@ -108,7 +108,7 @@ bool checkIfFileExists(const char *filename)
 
 		if ((lengthOfRootFile > 0) && (!strcmp(rootDirectory[i].fileName, filename)))
 		{
-			printf("Compared !!");
+			// printf("Compared !!");
 			count++;
 		}
 	}
@@ -328,11 +328,11 @@ int fs_create(const char *filename)
 	{
 
 		// ASK TA: ASK if have nothing for filename, but has data (size and index)
-		printf("inside for loop\n");
+		// printf("inside for loop\n");
 		// find empty spot in root directory
 		if (rootDirectory[i].fileName[0] == '\0') // ASK TA: how to check file size and first index?
 		{
-			printf("inside if statement on the %dth iteration\n", i);
+			// printf("inside if statement on the %dth iteration\n", i);
 			strcpy(rootDirectory[i].fileName, filename);
 			rootDirectory[i].sizeOfFile = 0;
 			rootDirectory[i].firstIndex = FAT_EOC;
@@ -375,7 +375,7 @@ int fs_delete(const char *filename)
 	}
 
 	/*all the data blocks containing the file’s contents must be freed in the FAT.*/
-	printf("Checkpoint 1\n");
+	// printf("Checkpoint 1\n");
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
 		printf("entering  for\n");
@@ -440,12 +440,12 @@ int fs_open(const char *filename)
 
 	for (int i = 0; i < FD_MAX; i++)
 	{
-		printf("Checkpoint 2\n");
-		printf("%d\n", fdArray[i].empty);
-		printf("Checkpoint 3\n");
+		// printf("Checkpoint 2\n");
+		// printf("%d\n", fdArray[i].empty);
+		// printf("Checkpoint 3\n");
 		if (fdArray[i].empty == 0)
 		{
-			printf("Checkpoint 4\n");
+			// printf("Checkpoint 4\n");
 			strcpy(fdArray[i].fileName, filename);
 			fdArray[i].fd = i;
 			fdArray[i].file_offset = 0;
@@ -504,11 +504,16 @@ int fs_stat(int fd)
 	*/
 
 	int fdFileSize = -1;
+	// printf("Filename is %s\n", fdArray[fd].fileName);
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		if (fdArray[fd].fileName == rootDirectory[i].fileName)
+		// printf("Root Directory's file name is %s\n", rootDirectory[i].fileName);
+		if (!strcmp(fdArray[fd].fileName, rootDirectory[i].fileName))
 		{
+			// printf("inside if for stat\n");
 			fdFileSize = rootDirectory[i].sizeOfFile;
+			// printf("fdFileSize: %d\n", fdFileSize);
+			// printf("File offset: %d\n", fdArray[fd].file_offset);
 			break;
 		}
 	}
@@ -517,6 +522,7 @@ int fs_stat(int fd)
 		disk_error("file does not exist");
 		return -1;
 	}
+	// printf("\n");
 	return fdFileSize;
 }
 
@@ -589,6 +595,28 @@ block of operation
 Partial access on first or last block
 (3) Full block
 */
+/*
+	1. If countOfBytesToRead is greater than the BLOCK_SIZE, then definitely
+		need more than one blocks to be read to the buffer
+		A. We need to track how many blocks we need for the amount of data
+			we are reading to the buffer
+		B. Then for each block, figure how many bytes we are reading to the buffer
+	2. If countOfBytesToRead is less than the BLOCK_SIZE, then
+		use a bounce buffer to first read the entire data block to
+		the bounce buffer and then memcpy() the needed amount of data to
+		the user buffer @buf.
+*/
+// read whole block
+
+// if count > block_size
+//		bytesToRead = (10-4096) = 4086 - from block 1
+//		increment currFatBlockINdex ++
+//		bytesLeftToRead = count - bytesToread = 5000-4086 = 914 -> bytes from next block
+//		bytesToRead = 4086+914 == count - done
+// If count < block_size //_> offset = 10, count = 20, block_size = 4096
+//		-> use bounce buffer
+//		->bounceoffset = 10%4096 -> 10 -> read 20 bytes
+//		newOffset = offset +count
 
 /*
 	1. Using the file descriptor @fd, find its location in the root directory to
@@ -612,7 +640,7 @@ int fs_read(int fd, void *buf, size_t count)
 	{
 		return -1;
 	}
-
+	// printf("In read function\n");
 	/*Find the location of the file in the root directory to access its attributes */
 	int fileLocation = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
@@ -622,6 +650,7 @@ int fs_read(int fd, void *buf, size_t count)
 			fileLocation = i;
 		}
 	}
+	// printf("fileLocation: %d\n", fileLocation);
 
 	/*Check actually what is the number of bytes to be read because of the file offset position
 		a. Smaller than @count
@@ -630,17 +659,26 @@ int fs_read(int fd, void *buf, size_t count)
 	int countOfBytesToRead = 0;
 	if (fdArray[fd].file_offset + count > rootDirectory[fileLocation].sizeOfFile)
 	{
-		countOfBytesToRead = rootDirectory[fileLocation].sizeOfFile - fdArray[fd].file_offset;
+		countOfBytesToRead = abs(rootDirectory[fileLocation].sizeOfFile - fdArray[fd].file_offset);
 	}
 	else
 	{
 		countOfBytesToRead = count;
 	}
 
+	// printf("Read CP1\n");
 	/*Create bounce buffer*/
-	char bounce_buf[BLOCK_SIZE];
-	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE;
-	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE; // 50 / 16 = 3
+	char bounceBuf[BLOCK_SIZE];
+	char *readBuf = (char *)buf;
+	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 50 % 16 = 2
+	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
+	// 16 size block, offset 50, read 20 bytes
+	// 0-16, 17-32, 33-48, 49-64, 65-80
+	// 0,     1,     2     3       4
+	//                     currBlockNUm(14 bytes), 6 bytes left-> move to next block = 4, read bytes 65-70
+	//						49 50
+	//						bounceOffset = 0, bytesToRead = if (20-16>=0),  copy the whole block (20-16>=0)
+	//						bytes left tp read = 20-16 = 4-> move to next block 4 < 16 -> bounce buffer
 
 	/*Find in the fat array, the current block index, to map out the data block to get data from*/
 	/*
@@ -648,20 +686,160 @@ int fs_read(int fd, void *buf, size_t count)
 		2. Keep on going to the next data block until reached the current block number
 		3. Set the currentFATBlockIndex to current data block index
 	*/
-	int currentFATBlockIndex = rootDirectory->firstIndex;
-	for (int i = 0; i < currBlockNum; i++)
+	/*FUNCTIONS TO USE:
+	void *memcpy(void *dest, const void * src, size_t n) //size_t n = strlen(src)+ 1
+	int block_read(size_t block, void *buf);
+	*/
+	// printf("Read CP2\n");
+	int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
+	// printf("currBlockNum: %d\n", currBlockNum);
+	// printf("currentFATBlockIndex @671 aka rootDirectory->firstIndex: %d\n", currentFATBlockIndex);
+	for (int i = 0; i < currBlockNum; i++) // change it to <=??
 	{
+		// printf("currentFATBlockIndex setting loop\n");
+		if (currentFATBlockIndex == FAT_EOC)
+		{
+			return -1;
+		}
 		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
 	}
-
-	/*
-	.
-	.
-	.
-	*/
+	// printf("currentFATBlockIndex @681: %d\n", currentFATBlockIndex);
 
 	/*Variable to store the number of bytes actually read*/
 	int numBytesRead = 0;
+	int numOfBlocksToRead = (countOfBytesToRead / BLOCK_SIZE) + 1;
+	// printf("countOfBytesToRead: %d\n", countOfBytesToRead);
+	// printf("numOfBlocksToRead = %d\n", numOfBlocksToRead);
+	// printf("numBytesRead at start = %d\n", numBytesRead);
+	// printf("\n");
+
+	// printf("Read CP3\n");
+	if (countOfBytesToRead == BLOCK_SIZE) // IDEAL CASE
+	{
+		printf("Read CP4: FIRST IF STATEMENT\n");
+		for (int i = 1; i <= numOfBlocksToRead; i++)
+		{
+			block_read(currentFATBlockIndex, readBuf);
+			numOfBlocksToRead += 1;
+			fdArray[fd].file_offset += BLOCK_SIZE;
+			numBytesRead += BLOCK_SIZE;
+			currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+		}
+		// printf("Read CP5\n");
+		// copy the whole block to bounce buff
+	}
+	else if (countOfBytesToRead < BLOCK_SIZE) // single block
+	{
+		// need bounce buffer
+		printf("Read CP6: SECOND IF STATEMENT\n");
+		// printf("currentFATBlockIndex: %d\n", currentFATBlockIndex);
+		// printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
+		// block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
+		block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
+		memcpy(readBuf, bounceBuf, countOfBytesToRead);
+		numBytesRead += countOfBytesToRead;
+		fdArray[fd].file_offset += countOfBytesToRead;
+		// printf("File Offset after reading: %d\n", fdArray[fd].file_offset);
+		// printf("numBytesRead at end = %d\n", numBytesRead);
+	}
+	else if (countOfBytesToRead > BLOCK_SIZE) // countOfBytesToRead > BLOCK_SIZE //multiple blocks
+	{
+		int firstLoopEntered = 0;
+		// offset = 0, count = 5000, block_size = 4096
+		// 5000/4096 = 1.22 = 1 => 1+1 = 2
+		// Curr bLock = 0
+		printf("Read CP7: THIRD IF STATEMENT\n");
+		if (fdArray[fd].file_offset == 0) // All blocks are read in entirety except for the last one = full
+		{
+			firstLoopEntered = 1;
+			// printf("Read CP8\n");
+			for (int i = 1; i <= numOfBlocksToRead; i++)
+			// while ( currentFATBlockIndex != 65535)
+			{
+				if (countOfBytesToRead < BLOCK_SIZE) // last block not full
+				{
+					// printf("Read CP10\n");
+					char *endBuff[countOfBytesToRead - 1];
+					// printf("COUNT < BLOCK SIZE\n");
+					// printf("currFATIndex: %d\n", currentFATBlockIndex);
+					// printf("File offset: %d\n", fdArray[fd].file_offset);
+					// use bounce buffer
+					block_read(currentFATBlockIndex, endBuff);
+					// need to read bytes from 4096 - 5000 = 904
+					memcpy(readBuf, endBuff, countOfBytesToRead);
+					numBytesRead += countOfBytesToRead;
+					fdArray[fd].file_offset += countOfBytesToRead;
+					break;
+				}
+
+				// printf(" \n");
+				// printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
+				// read from first block
+				block_read(currentFATBlockIndex, readBuf);
+				numBytesRead += BLOCK_SIZE;
+				// printf("numBytesRead so far: %d\n", numBytesRead);
+				fdArray[fd].file_offset += BLOCK_SIZE;
+				// printf("File Offset after reading: %d\n", fdArray[fd].file_offset);
+
+				countOfBytesToRead = abs(countOfBytesToRead - BLOCK_SIZE); // 9000-4096 = 904
+				// printf("Count of bytes to read: %d\n", countOfBytesToRead);
+				// move to the next data block
+				// printf("currFATIndex: %d\n", currentFATBlockIndex);
+				currentFATBlockIndex = fatArray[currentFATBlockIndex].next; // block 2
+																			// printf("currFATIndex: %d\n", currentFATBlockIndex);
+																			// numOfBlocksToRead +=1 ;
+			}
+		}
+		/*  9000 0-4095, 4096-8191-8192-12287
+		Block = 1 : offset = 0
+		BytesToRead= 4096
+		offset = 0+ 4096 = 4096
+		CountbytesToread = 9000-4096 = 4904
+		block=2
+		Block =2: offset=4096 ,
+		BytesToRaed = 8192
+		offset = 4096+4096 = 8192
+		countOfBytesToRead = 4904-4096 = 808
+		block = 3
+		Block 3: offset = 8192
+		biunce = 3
+		*/
+
+		if (fdArray[fd].file_offset > 0 && firstLoopEntered == 0) // first Block not full , all other blocks full
+		{														  // offset 10, count = 5000,
+			// printf("Read CP9\n");
+			// first block not full, use bounce buffer
+			block_read(currentFATBlockIndex, bounceBuf); // block = 0
+			numBytesRead = BLOCK_SIZE - bounceBufOffSet; // 4096 - 10 = 4086
+			memcpy(readBuf, bounceBuf, numBytesRead);
+			// increment block
+			currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+			numOfBlocksToRead += 1;
+			// increment offset
+			fdArray[fd].file_offset += numBytesRead;				// 10+4086 = 4098
+			countOfBytesToRead = countOfBytesToRead - numBytesRead; // 5000-4096 = 914
+			for (int i = 2; i <= numOfBlocksToRead; i++)
+			{ // last block full , offset = 10, count = 8182
+				// continue reading next blocks, full
+				block_read(currentFATBlockIndex, readBuf);
+				numBytesRead += BLOCK_SIZE;
+				currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+				numOfBlocksToRead += 1;
+				fdArray[fd].file_offset += BLOCK_SIZE;
+				countOfBytesToRead = countOfBytesToRead - numBytesRead;
+
+				if (countOfBytesToRead < BLOCK_SIZE) // last block not full
+				{
+					// use bounce buffer
+					block_read(currentFATBlockIndex, bounceBuf);
+					// need to read bytes from 4096 - 5000 = 904
+					memcpy(readBuf, bounceBuf, countOfBytesToRead);
+					numBytesRead += countOfBytesToRead;
+					fdArray[fd].file_offset += countOfBytesToRead;
+				} // end if
+			}	  // end for
+		}
+	}
 
 	return numBytesRead;
 }
