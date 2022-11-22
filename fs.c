@@ -1,4 +1,3 @@
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,7 +71,30 @@ bool checkIfFileOpen(struct superblock *superBlock)
 	}
 	return fileOpen;
 }
-
+int emptyFATIndex(struct FAT *fatArray)
+{
+	uint16_t nextEmptyFAT = 0;
+	for (int i = 0; i < superBlock->numBlocksFAT; i++)
+	{
+		if(fatArray[i].next == 0)
+		{
+			nextEmptyFAT = i;
+			printf("empty in loop: %d\n", nextEmptyFAT);
+		}	
+	}
+	return nextEmptyFAT;
+}
+int totalEmptyFATBlocks(struct FAT *fatArray){
+	int totalEmptyFAT = 0;
+	for (int i = 0; i < superBlock->numDataBlocks; i++)
+	{
+		if(fatArray[i].next == 0)
+		{
+			totalEmptyFAT++;
+		}	
+	}
+	return totalEmptyFAT;
+}
 /*Checks if filename is invalid */
 /*Invalid if:
 	1. filename's total length exceeds the FS_FILENAME_LEN (including the NULL character)
@@ -120,6 +142,7 @@ bool checkIfFileExists(const char *filename)
 	}
 	return fileExists;
 }
+
 
 /*Checks if file descriptor is invalid*/
 bool checkFileDescriptorValid(int fd)
@@ -602,17 +625,18 @@ int fs_lseek(int fd, size_t offset)
 
 	
 */
+
 int fs_write(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	/*Error: No FS currently mounted, file descriptor is invalid,
-		or @buf is NULL*/
+	// /* TODO: Phase 4 */
+	// /*Error: No FS currently mounted, file descriptor is invalid,
+	// 	or @buf is NULL*/
 	if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || buf == NULL)
 	{
 		return -1;
 	}
 
-	/*Find the location of the file in the root directory to access its attributes */
+	// /*Find the location of the file in the root directory to access its attributes */
 	int fileLocation = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
@@ -621,55 +645,15 @@ int fs_write(int fd, void *buf, size_t count)
 			fileLocation = i;
 		}
 	}
-	int fileSize = rootdirectory[fileLocation].sizeOfFile;
-	int fileOffset = fdArray[fd].file_offset;
-	/*CASE: COUNT IS BIGGER< NEEDS MORE THAN 1 NEW DATA BLOCKS
-	E.g, db1 1, fileSize = 4086, fileOffset = 4080, count = 5000
-	FreeSPace = BLOCK_SIZE = fileSize //4096 - 4086 = 10
-	WriteableBytesInDataBlk = filesize - offset //4086-4080 = 6
-	numOfBytesWritten = 0
-
-	if ( count > WriteableBytesInDataBlk ) // 5000 > 6
-	{
-		bytesWritten = WriteableBytesInDataBlk // 6
-		numOfBytesWritten += BytesWritten //6
-		BytesLeftToWrite = count - bytesWritten // 5000-6 = 4994
-		if ( BytesLeftToWrite > freeSpace ) //4994 > 10
-		{
-			bytesWritten = freeSpace // 10
-			numOfBytesWritten += BytesWritten //6+10 = 16
-			BytesLeftToWrite -= bytesWritten // 4994 - 10 = 4984
-			//need new data blocks 
-			numNewDataBlk = (BytesLeftToWrite / BLOCK_SIZE ) // (4884/4096) + 1
-			for ( int i = 1; i<= numNewDtaBlk; i++){
-				//write first blk
-				if (BytesLeftToWrite > BLOCK_SIZE ){ //4984 > 4096
-					bytesWritten = BLOCK_SIZE // 4096
-					numOfBytesWritten += BytesWritten // 16+4096 = 4112
-					BytesLeftToWrite -= bytesWritten //4884 - 4096 = 888
-					numNewDtaBlk ++ 
-				}
-				if (BytesLeftToWrite < BLOCK_SIZE ){ //888 < 4096
-					bytesWritten = BytesLeftToWrite // 888
-					numOfBytesWritten += BytesWritten // 4112 + 888 = 5000
-					numNewDtaBlk ++ 
-				}
-			} // end for 
-
-		} // end if 
-	} // end if 
+	/*Buffer to temporarily hold data that is going to be written to the file*/
+	char bounceBuf[BLOCK_SIZE];
+	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 4080 % 4096 = 
+	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
 	
-	CASE : COUNT < WriteableBytesInDataBlk 
-	if (COUNT < WriteableBytesInDataBlk ) // 5<6
-	{
-		bytesWritten = count; 
-	}
-
-	*/
-
 	/*C. curFatBlockIndex*/
 	int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
-	for (int i = 0; i < currBlockNum; i++)
+	printf("currentFATBlockIndex @645 aka rootDirectory->firstIndex: %d\n", currentFATBlockIndex);
+	for (int i = 0; i < currBlockNum; i++) 
 	{
 		if (currentFATBlockIndex == FAT_EOC)
 		{
@@ -677,23 +661,143 @@ int fs_write(int fd, void *buf, size_t count)
 		}
 		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
 	}
+	printf("currentFATBlockIndex @654: %d\n", currentFATBlockIndex);
 
-	/*
-		A. Blocks needed to write the data to the file: numOfBlocksToWrite
-		B. curBlockNum
-		D. bounce buffer
-		E. numOfBytesWritten (needs to be returned at the end of the function)
-		F. bounceBufOffset
-	*/
-	char bounceBuf[BLOCK_SIZE];
+	/*Buffer from where we are getting the data to write to the file*/
 	char *writeBuf = (char *)buf;
-	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 50 % 16 = 2
-	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
-	int numOfBytesWritten = 0;
-	int numOfBlocksToWrite = (count / BLOCK_SIZE) + 1; /*NEED TO CHECK IF THIS IS HOW TO CALCULATE THIS*/
+
+	int fileSize = rootDirectory[fileLocation].sizeOfFile;
+	int fileOffset = fdArray[fd].file_offset;
+
+	
+	int totalBytesWritten = 0;
+	int numOfBlocksToWrite = 0; //new data blocks to allocate 
+	int bytesToWrite = 0;
+	int bytesLeftToWrite = 0;
+	int emptyFAT = 0;
+	int totalEmptyFat = totalEmptyFat(fatArray); // total empty FAT blocks
+
+	//PSEUDO CODE 
+	/*CASE: COUNT IS BIGGER< NEEDS MORE THAN 1 NEW DATA BLOCKS
+	E.g, db1 1, fileSize = 4086, fileOffset = 4080, count = 5000
+	*/
+	int freeSpace = BLOCK_SIZE - fileSize; //4096 - 4086 = 10
+	int writeableBytesInFile = fileSize - fileOffset; //4086-4080 = 6
+
+	if (count > writeableBytesInFile) // 5000 > 6
+	{
+		bytesToWrite = writeableBytesInFile; // 6
+		/*write to the file here*/
+		//read block from disk into bounce buff
+		printf("CP 1\n");
+		printf("Current FAT: %d\n", currentFATBlockIndex);
+		printf("Current FAT + super: %d\n", currentFATBlockIndex + superBlock->dataBlockStartIndex);
+		printf("super: %d\n", superBlock->dataBlockStartIndex);
+		printf("file offset: ")
+
+		
+		block_read(currentFATBlockIndex+superBlock->dataBlockStartIndex, bounceBuf); 
+		//modify only the part starting from the file’s offset with the user-supplied buffer
+		memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+		block_write(currentFATBlockIndex, writeBuf);
+		
+		totalBytesWritten += bytesToWrite; //6
+		bytesLeftToWrite = count - bytesToWrite;// 5000-6 = 4994
+
+		if (bytesLeftToWrite > freeSpace) //4994 > 10
+		{
+			bytesToWrite = freeSpace; // 10
+			/*write to the file here*/
+			printf("CP 2\n");
+			block_read(currentFATBlockIndex, bounceBuf); 
+			memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+			block_write(currentFATBlockIndex, writeBuf);
+
+			totalBytesWritten += bytesToWrite;//6+10 = 16
+			bytesLeftToWrite -= bytesToWrite; // 4994 - 10 = 4984
+
+			//need new data blocks 
+			//numOfBlocksToWrite = (bytesLeftToWrite / BLOCK_SIZE ) + 1; // (4884/4096) + 1
+			//for (int i = 1; i<= numOfBlocksToWrite; i++)  //bytesLefttoWrite !=0 
+			while(bytesLeftToWrite != 0) // 4894 != 0 , true, 0!=0, flase 
+			{
+				numOfBlocksToWrite++;
+				if ( (bytesLeftToWrite < BLOCK_SIZE) && (numOfBlocksToWrite <= totalEmptyFat)){ // 888 < 4096, 
+					// allocate a new block
+					emptyFAT = emptyFATIndex(fatArray);
+					printf("Empty fat: %d\n", emptyFAT);
+					fatArray[currentFATBlockIndex].next = emptyFAT;
+
+					//numOfBlocksToWrite++;
+					bytesToWrite = bytesLeftToWrite; // 888
+					/*write to the file here*/
+					printf("CP 3\n");
+					block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf); 
+					memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+					block_write(currentFATBlockIndex + superBlock->dataBlockStartIndex, writeBuf);
+
+					totalBytesWritten += bytesToWrite; // 4112 + 888 = 5000
+					bytesLeftToWrite -= bytesToWrite ; //888-888 = 0
+					currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+					//incremement FAT block
+				}
+				//write first blk
+				if ( (bytesLeftToWrite >= BLOCK_SIZE)  &&  (numOfBlocksToWrite <= totalEmptyFat)){ //4984 > 4096 ,  4096= 4096
+					// allocate  
+					emptyFAT = emptyFATIndex(fatArray);
+					printf("Empty fat: %d\n", emptyFAT);
+					fatArray[currentFATBlockIndex].next = emptyFAT;
+					//numOfBlocksToWrite++;
+					bytesToWrite = BLOCK_SIZE; // 4096
+					/*write to the file here*/
+					printf("CP 4\n");
+					block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf); 
+					memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+					block_write(currentFATBlockIndex + superBlock->dataBlockStartIndex, writeBuf);
+
+					totalBytesWritten += bytesToWrite; // 16+4096 = 4112
+					bytesLeftToWrite -= bytesToWrite; //4884 - 4096 = 888,
+						
+					// increment FAT block
+					currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+				}
+			} // end while
+			//curFATBlock = set it to EOC 
+			currentFATBlockIndex = FAT_EOC;
+
+		} // end if 
+		//offset = 4040,filesize = 4086, count= 15
+		// 6 bytes in data block
+		// bytes Left = 15-6 = 9
+		if (bytesLeftToWrite < freeSpace) // 9 < 10 , use empty space in the same block
+		{
+			bytesToWrite = bytesLeftToWrite;
+			/*write to the file here*/
+			printf("CP 5\n");
+			block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf); 
+			memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+			block_write(currentFATBlockIndex + superBlock->dataBlockStartIndex, writeBuf);
+			totalBytesWritten += bytesToWrite; //6+9 = 15
+
+		}
+	} // end if 
+	
+	//CASE : COUNT < WriteableBytesInDataBlk 
+	if (count < writeableBytesInFile ) // 5 < 6
+	{
+		bytesToWrite = count; 
+		/*write to the file here*/
+		printf("CP 6\n");
+		block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf); 
+		memcpy(bounceBuf + bounceBufOffSet, writeBuf, bytesToWrite);
+		block_write(currentFATBlockIndex + superBlock->dataBlockStartIndex, writeBuf);
+		totalBytesWritten += bytesToWrite;
+	}
+
+	//PSEUDO CODE END
 
 
-	return numOfBytesWritten;
+	return totalBytesWritten;
 	
 }
 
@@ -881,6 +985,9 @@ int fs_read(int fd, void *buf, size_t count)
 		// printf("currentFATBlockIndex: %d\n", currentFATBlockIndex);
 		// printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
 		// block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
+		printf("CP1\n");
+		printf("Current FAT: %d\n", currentFATBlockIndex);
+		printf("Current FAT + super: %d\n", currentFATBlockIndex + superBlock->dataBlockStartIndex);
 		block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
 		memcpy(readBuf, bounceBuf, countOfBytesToRead);
 		numBytesRead += countOfBytesToRead;
