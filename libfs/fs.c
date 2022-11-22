@@ -544,6 +544,7 @@ int fs_lseek(int fd, size_t offset)
 
 	return 0;
 }
+
 /**
  * fs_write - Write to a file
  * @fd: File descriptor
@@ -568,11 +569,11 @@ int fs_lseek(int fd, size_t offset)
 /*
 	Steps:
 	1. Error checking
-	2. Using the file descriptor @fd, 
+	2. Using the file descriptor @fd,
 		A. find its location in the root directory to get its file size
 			 and index of the first data block
 		B. Find the file offset
-	3. Find/Create: 
+	3. Find/Create:
 		A. How many blocks are needed to write the data to the file?
 			1. Need to figure out the part of how to extend the file to hold additional bytes***
 		B. curBlockNum
@@ -580,7 +581,7 @@ int fs_lseek(int fd, size_t offset)
 		D. bounce buffer
 		E. numOfBytesWritten (needs to be returned at the end of the function)
 		F. bounceBufOffset
-	4. From the curFatBlockIndex, find available blocks from the beginnning of the FAT 
+	4. From the curFatBlockIndex, find available blocks from the beginnning of the FAT
 		following the "first-fit" strategy and store the information of which blocks are available
 		and how many there are.
 	5. Figure out how many data blocks are available on the disk to stop writing when there is no more space left
@@ -600,7 +601,30 @@ int fs_write(int fd, void *buf, size_t count)
 		return -1;
 	}
 
-	int numOfBytesWritten;
+	/*C. curFatBlockIndex*/
+	int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
+	for (int i = 0; i < currBlockNum; i++)
+	{
+		if (currentFATBlockIndex == FAT_EOC)
+		{
+			return -1;
+		}
+		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+	}
+
+	/*
+		A. Blocks needed to write the data to the file: numOfBlocksToWrite
+		B. curBlockNum
+		D. bounce buffer
+		E. numOfBytesWritten (needs to be returned at the end of the function)
+		F. bounceBufOffset
+	*/
+	char bounceBuf[BLOCK_SIZE];
+	char *writeBuf = (char *)buf;
+	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 50 % 16 = 2
+	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
+	int numOfBytesWritten = 0;
+	int numOfBlocksToWrite = (count / BLOCK_SIZE) + 1; /*NEED TO CHECK IF THIS IS HOW TO CALCULATE THIS*/
 
 	return numOfBytesWritten;
 }
