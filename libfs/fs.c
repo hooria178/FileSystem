@@ -593,8 +593,54 @@ int fs_lseek(int fd, size_t offset)
 */
 int fs_write(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	
+	// /* TODO: Phase 4 */
+	// /*Error: No FS currently mounted, file descriptor is invalid,
+	// 	or @buf is NULL*/
+	// if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || buf == NULL)
+	// {
+	// 	return -1;
+	// }
+
+	// /*C. curFatBlockIndex*/
+	// int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
+	// for (int i = 0; i < currBlockNum; i++)
+	// {
+	// 	if (currentFATBlockIndex == FAT_EOC)
+	// 	{
+	// 		return -1;
+	// 	}
+	// 	currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+	// }
+
+	// /*
+	// 	A. Blocks needed to write the data to the file: numOfBlocksToWrite
+	// 	B. curBlockNum
+	// 	D. bounce buffer
+	// 	E. numOfBytesWritten (needs to be returned at the end of the function)
+	// 	F. bounceBufOffset
+	// */
+	// char bounceBuf[BLOCK_SIZE];
+	// char *writeBuf = (char *)buf;
+	// int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 50 % 16 = 2
+	// int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
+	// int numOfBytesWritten = 0;
+	// int numOfBlocksToWrite = (count / BLOCK_SIZE) + 1; /*NEED TO CHECK IF THIS IS HOW TO CALCULATE THIS*/
+
+	// /*
+	// 	4. Find available blocks from the beginnning of the FAT
+	// 	following the "first-fit" strategy and store the information of which blocks are available
+	// 	and how many there are.
+	// */
+	// int availableFatBlockCount = 0;
+	// int 
+	// for(int i = 0; i < superBlock->dataBlockStartIndex; i++)
+	// {
+	// 	for(int j = 0; j < superBlock->numBlocksFAT; j++)
+	// 	{
+	// 		fdArray[i]
+	// 	}
+	// }
+	// return numOfBytesWritten;
 	return 0;
 }
 
@@ -763,7 +809,7 @@ int fs_read(int fd, void *buf, size_t count)
 	// printf("Read CP3\n");
 	if (countOfBytesToRead == BLOCK_SIZE) // IDEAL CASE
 	{
-		printf("Read CP4: FIRST IF STATEMENT\n");
+		// printf("Read CP4: FIRST IF STATEMENT\n");
 		for (int i = 1; i <= numOfBlocksToRead; i++)
 		{
 			block_read(currentFATBlockIndex, readBuf);
@@ -778,7 +824,7 @@ int fs_read(int fd, void *buf, size_t count)
 	else if (countOfBytesToRead < BLOCK_SIZE) // single block
 	{
 		// need bounce buffer
-		printf("Read CP6: SECOND IF STATEMENT\n");
+		// printf("Read CP6: SECOND IF STATEMENT\n");
 		// printf("currentFATBlockIndex: %d\n", currentFATBlockIndex);
 		// printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
 		// block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
@@ -795,7 +841,7 @@ int fs_read(int fd, void *buf, size_t count)
 		// offset = 0, count = 5000, block_size = 4096
 		// 5000/4096 = 1.22 = 1 => 1+1 = 2
 		// Curr bLock = 0
-		printf("Read CP7: THIRD IF STATEMENT\n");
+		// printf("Read CP7: THIRD IF STATEMENT\n");
 		if (fdArray[fd].file_offset == 0) // All blocks are read in entirety except for the last one = full
 		{
 			firstLoopEntered = 1;
