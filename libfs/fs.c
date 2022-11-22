@@ -594,48 +594,8 @@ int fs_lseek(int fd, size_t offset)
 int fs_write(int fd, void *buf, size_t count)
 {
 	/* TODO: Phase 4 */
-	/*Error: No FS currently mounted, file descriptor is invalid,
-		or @buf is NULL*/
-	if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || buf == NULL)
-	{
-		return -1;
-	}
-
-	/*C. curFatBlockIndex*/
-	int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
-	for (int i = 0; i < currBlockNum; i++)
-	{
-		if (currentFATBlockIndex == FAT_EOC)
-		{
-			return -1;
-		}
-		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
-	}
-
-	/*
-		A. Blocks needed to write the data to the file: numOfBlocksToWrite
-		B. curBlockNum
-		D. bounce buffer
-		E. numOfBytesWritten (needs to be returned at the end of the function)
-		F. bounceBufOffset
-	*/
-	char bounceBuf[BLOCK_SIZE];
-	char *writeBuf = (char *)buf;
-	int bounceBufOffSet = fdArray[fd].file_offset % BLOCK_SIZE; // 50 % 16 = 2
-	int currBlockNum = fdArray[fd].file_offset / BLOCK_SIZE;	// 50 / 16 = 3
-	int numOfBytesWritten = 0;
-	int numOfBlocksToWrite = (count / BLOCK_SIZE) + 1; /*NEED TO CHECK IF THIS IS HOW TO CALCULATE THIS*/
-
-	int availableFatBlockCount = 0;
-	int 
-	for(int i = 0; i < superBlock->dataBlockStartIndex; i++)
-	{
-		for(int j = 0; j < superBlock->numBlocksFAT; j++)
-		{
-			fdArray[i]
-		}
-	}
-	return numOfBytesWritten;
+	
+	return 0;
 }
 
 /*
