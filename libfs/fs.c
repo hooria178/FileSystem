@@ -564,7 +564,7 @@ int fs_lseek(int fd, size_t offset)
  * Return: -1 if no FS is currently mounted, or if file descriptor @fd is
  * invalid (out of bounds or not currently open), or if @buf is NULL. Otherwise
  * return the number of bytes actually written.
- */
+*/
 
 /*
 	Steps:
@@ -581,7 +581,7 @@ int fs_lseek(int fd, size_t offset)
 		D. bounce buffer
 		E. numOfBytesWritten (needs to be returned at the end of the function)
 		F. bounceBufOffset
-	4. From the curFatBlockIndex, find available blocks from the beginnning of the FAT
+	4. 	Find available blocks from the beginnning of the FAT
 		following the "first-fit" strategy and store the information of which blocks are available
 		and how many there are.
 	5. Figure out how many data blocks are available on the disk to stop writing when there is no more space left
@@ -626,6 +626,15 @@ int fs_write(int fd, void *buf, size_t count)
 	int numOfBytesWritten = 0;
 	int numOfBlocksToWrite = (count / BLOCK_SIZE) + 1; /*NEED TO CHECK IF THIS IS HOW TO CALCULATE THIS*/
 
+	int availableFatBlockCount = 0;
+	int 
+	for(int i = 0; i < superBlock->dataBlockStartIndex; i++)
+	{
+		for(int j = 0; j < superBlock->numBlocksFAT; j++)
+		{
+			fdArray[i]
+		}
+	}
 	return numOfBytesWritten;
 }
 
