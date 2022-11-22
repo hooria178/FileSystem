@@ -544,11 +544,65 @@ int fs_lseek(int fd, size_t offset)
 
 	return 0;
 }
+/**
+ * fs_write - Write to a file
+ * @fd: File descriptor
+ * @buf: Data buffer to write in the file
+ * @count: Number of bytes of data to be written
+ *
+ * Attempt to write @count bytes of data from buffer pointer by @buf into the
+ * file referenced by file descriptor @fd. It is assumed that @buf holds at
+ * least @count bytes.
+ *
+ * When the function attempts to write past the end of the file, the file is
+ * automatically extended to hold the additional bytes. If the underlying disk
+ * runs out of space while performing a write operation, fs_write() should write
+ * as many bytes as possible. The number of written bytes can therefore be
+ * smaller than @count (it can even be 0 if there is no more space on disk).
+ *
+ * Return: -1 if no FS is currently mounted, or if file descriptor @fd is
+ * invalid (out of bounds or not currently open), or if @buf is NULL. Otherwise
+ * return the number of bytes actually written.
+ */
 
+/*
+	Steps:
+	1. Error checking
+	2. Using the file descriptor @fd, 
+		A. find its location in the root directory to get its file size
+			 and index of the first data block
+		B. Find the file offset
+	3. Find/Create: 
+		A. How many blocks are needed to write the data to the file?
+			1. Need to figure out the part of how to extend the file to hold additional bytes***
+		B. curBlockNum
+		C. curFatBlockIndex
+		D. bounce buffer
+		E. numOfBytesWritten (needs to be returned at the end of the function)
+		F. bounceBufOffset
+	4. From the curFatBlockIndex, find available blocks from the beginnning of the FAT 
+		following the "first-fit" strategy and store the information of which blocks are available
+		and how many there are.
+	5. Figure out how many data blocks are available on the disk to stop writing when there is no more space left
+	6. Write to the file block per block using block_write()
+	7. Change the FAT entries that points to the correct next data block accordingly
+	8. Change the file's size to current file size and the number of bytes written
+	9. Return the number of bytes written.
+
+*/
 int fs_write(int fd, void *buf, size_t count)
 {
 	/* TODO: Phase 4 */
-	return 0;
+	/*Error: No FS currently mounted, file descriptor is invalid,
+		or @buf is NULL*/
+	if (checkIfFileOpen(superBlock) == 0 || checkFileDescriptorValid(fd) == 0 || buf == NULL)
+	{
+		return -1;
+	}
+
+	int numOfBytesWritten;
+
+	return numOfBytesWritten;
 }
 
 /*
