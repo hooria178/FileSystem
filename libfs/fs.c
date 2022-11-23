@@ -1004,14 +1004,10 @@ int fs_read(int fd, void *buf, size_t count)
 	if (countOfBytesToRead == BLOCK_SIZE) // IDEAL CASE
 	{
 		// printf("Read CP4: FIRST IF STATEMENT\n");
-		for (int i = 1; i <= numOfBlocksToRead; i++)
-		{
-			block_read(currentFATBlockIndex, readBuf);
-			numOfBlocksToRead += 1;
-			fdArray[fd].file_offset += BLOCK_SIZE;
-			numBytesRead += BLOCK_SIZE;
-			currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
-		}
+		block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, readBuf);
+		fdArray[fd].file_offset += BLOCK_SIZE;
+		numBytesRead += BLOCK_SIZE;
+		currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
 		// printf("Read CP5\n");
 		// copy the whole block to bounce buff
 	}
@@ -1122,7 +1118,6 @@ int fs_read(int fd, void *buf, size_t count)
 				{
 					// use bounce buffer
 					block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
-					// need to read bytes from 4096 - 5000 = 904
 					memcpy(readBuf, bounceBuf, countOfBytesToRead);
 					numBytesRead += countOfBytesToRead;
 					fdArray[fd].file_offset += countOfBytesToRead;
