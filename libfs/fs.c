@@ -711,6 +711,7 @@ int fs_write(int fd, void *buf, size_t count)
 	int bytesLeftToWrite = count;
 	int nextEmptyFatIndex = emptyFATIndex();
 	int spaceOnDisk = totalEmptyFATBlocks(); // total empty FAT blocks
+	int firstFileOffSet = fileOffset;
 	printf("empty FAT index: %d\n", nextEmptyFatIndex);
 	printf("Total number of empty FAT indices: %d\n", spaceOnDisk);
 	printf("count: %d\n", (int)count);
@@ -731,9 +732,7 @@ int fs_write(int fd, void *buf, size_t count)
 		numOfBlocksToWrite = spaceOnDisk;
 	}
 	printf("numOfBlocksToWrite: %d\n", numOfBlocksToWrite);
-	fatArray[9].next = 0;
-	fatArray[10].next = 0;
-	fatArray[11].next = 0;
+
 	/*Write to file block by block*/
 	for (int i = 0; i < numOfBlocksToWrite; i++)
 	{
@@ -779,9 +778,9 @@ int fs_write(int fd, void *buf, size_t count)
 			memcpy(bounceBuf, writeBuf, bytesLeftToWrite);
 			block_write(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
 
-			bytesLeftToWrite -= bytesLeftToWrite;
 			totalBytesWritten += bytesLeftToWrite;
 			fileOffset += bytesLeftToWrite;
+			bytesLeftToWrite -= bytesLeftToWrite;
 			printf("File's offset now: %d\n", fileOffset);
 			printf("Bytes left to write: %d\n", bytesLeftToWrite);
 			printf("Total bytes written so far: %d\n", totalBytesWritten);
@@ -822,6 +821,7 @@ int fs_write(int fd, void *buf, size_t count)
 		}
 	}
 	currentFATBlockIndex = fatArray[currentFATBlockIndex].next;
+	rootDirectory[fileLocation].sizeOfFile = firstFileOffSet + totalBytesWritten;
 
 	return totalBytesWritten;
 }
