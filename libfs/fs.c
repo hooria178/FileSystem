@@ -731,7 +731,7 @@ int fs_write(int fd, void *buf, size_t count)
 		/*set the current FAT block index to the next empty FAT index*/
 		currentFATBlockIndex = nextEmptyFatIndex;
 		rootDirectory[fileLocation].firstIndex = nextEmptyFatIndex;
-		if (numOfBlocksToWrite == 1)
+		if (count == 0)
 		{
 			rootDirectory[fileLocation].firstIndex = FAT_EOC;
 		}
@@ -1013,20 +1013,22 @@ int fs_read(int fd, void *buf, size_t count)
 	}
 	else if (countOfBytesToRead < BLOCK_SIZE) // single block
 	{
+		/*NEED TO INCLUDE THE CASES OF FILE OFFSET BEING 0 OR GREATER THAN 0.*/
+		/*NEED TO SEE WHAT TO DO WHEN COUNT OF BYTES TO READ IS 0*/
 		// need bounce buffer
-		// printf("Read CP6: SECOND IF STATEMENT\n");
-		// printf("currentFATBlockIndex: %d\n", currentFATBlockIndex);
-		// printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
+		printf("Read CP6: SECOND IF STATEMENT\n");
+		printf("currentFATBlockIndex: %d\n", currentFATBlockIndex);
+		printf("File Offset before reading: %d\n", fdArray[fd].file_offset);
 		// block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
 		// printf("CP1\n");
-		// printf("Current FAT: %d\n", currentFATBlockIndex);
-		// printf("Current FAT + super: %d\n", currentFATBlockIndex + superBlock->dataBlockStartIndex);
+		printf("countOfBytesToRead: %d\n", countOfBytesToRead);
+		printf("Current FAT + super: %d\n", currentFATBlockIndex + superBlock->dataBlockStartIndex);
 		block_read(currentFATBlockIndex + superBlock->dataBlockStartIndex, bounceBuf);
 		memcpy(readBuf, bounceBuf, countOfBytesToRead);
 		numBytesRead += countOfBytesToRead;
 		fdArray[fd].file_offset += countOfBytesToRead;
-		// printf("File Offset after reading: %d\n", fdArray[fd].file_offset);
-		// printf("numBytesRead at end = %d\n", numBytesRead);
+		printf("File Offset after reading: %d\n", fdArray[fd].file_offset);
+		printf("numBytesRead at end = %d\n", numBytesRead);
 	}
 	else if (countOfBytesToRead > BLOCK_SIZE) // countOfBytesToRead > BLOCK_SIZE //multiple blocks
 	{
