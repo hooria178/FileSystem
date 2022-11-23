@@ -980,7 +980,7 @@ int fs_read(int fd, void *buf, size_t count)
 	// printf("Read CP2\n");
 	int currentFATBlockIndex = rootDirectory[fileLocation].firstIndex;
 	// printf("currBlockNum: %d\n", currBlockNum);
-	// printf("currentFATBlockIndex @671 aka rootDirectory->firstIndex: %d\n", currentFATBlockIndex);
+	printf("currentFATBlockIndex aka rootDirectory->firstIndex: %d\n", currentFATBlockIndex);
 	for (int i = 0; i < currBlockNum; i++) // change it to <=??
 	{
 		// printf("currentFATBlockIndex setting loop\n");
