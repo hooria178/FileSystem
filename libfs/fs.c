@@ -435,21 +435,27 @@ int fs_delete(const char *filename)
 			// rootDirectory[i].firstIndex = 2
 			if (rootDirectory[i].sizeOfFile > 0)
 			{
-				uint16_t fatIndex = rootDirectory[i].firstIndex;			   // 2 index
-				uint16_t nextFat = fatArray[rootDirectory[i].firstIndex].next; // 3 content
-				while (nextFat != FAT_EOC)
+				// uint16_t fatIndex = rootDirectory[i].firstIndex;			   // 2 index
+				// uint16_t nextFat = fatArray[rootDirectory[i].firstIndex].next; // 3 content
+				int fatIndex = rootDirectory[i].firstIndex; // 2 index
+				int nextFat;								// 3 content
+				printf("Checking FAT array: %d\n", emptyFATIndex());
+				while (fatIndex != FAT_EOC)
 				{
 					// printf("Entering while\n");
-					fatIndex = nextFat; // 2-> 3 index
-					nextFat = 0;		// 3-> 0 content
+					// fatIndex = nextFat; // 2-> 3 index
+					// nextFat = 0;		// 3-> 0 content
+					// nextFat = fatIndex;
 					nextFat = fatArray[fatIndex].next;
-				} // end while
+					fatArray[fatIndex].next = 0;
+					fatIndex = nextFat;
 
-				nextFat = 0;
+				} // end while
+				rootDirectory[i].sizeOfFile = 0;
+				// nextFat = 0;
 			} // end if
 		}	  // end if
 	}		  // end for
-
 	return 0;
 }
 
@@ -1030,13 +1036,13 @@ int fs_read(int fd, void *buf, size_t count)
 		if (fdArray[fd].file_offset == 0) // All blocks are read in entirety except for the last one = full
 		{
 			firstLoopEntered = 1;
-			// printf("Read CP8\n");
+			printf("Read CP8\n");
 			for (int i = 1; i <= numOfBlocksToRead; i++)
 			// while ( currentFATBlockIndex != 65535)
 			{
 				if (countOfBytesToRead < BLOCK_SIZE) // last block not full
 				{
-					// printf("Read CP10\n");
+					printf("Read CP10\n");
 					char *endBuff[countOfBytesToRead - 1];
 					// printf("COUNT < BLOCK SIZE\n");
 					// printf("currFATIndex: %d\n", currentFATBlockIndex);
@@ -1085,7 +1091,7 @@ int fs_read(int fd, void *buf, size_t count)
 
 		if (fdArray[fd].file_offset > 0 && firstLoopEntered == 0) // first Block not full , all other blocks full
 		{														  // offset 10, count = 5000,
-			// printf("Read CP9\n");
+			printf("Read CP9\n");
 			// first block not full, use bounce buffer
 			block_read(currentFATBlockIndex, bounceBuf); // block = 0
 			numBytesRead = BLOCK_SIZE - bounceBufOffSet; // 4096 - 10 = 4086
