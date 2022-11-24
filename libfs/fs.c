@@ -479,7 +479,7 @@ int fs_close(int fd)
         4. Set the index in fdArray to being empty (aka empty == true)
     */
     strcpy(fdArray[fd].fileName, "");
-    fdArray[fd].fd = -1;
+    //fdArray[fd].fd = -1;
     fdArray[fd].file_offset = 0;
     fdArray[fd].empty = true;
     file_open = false;
